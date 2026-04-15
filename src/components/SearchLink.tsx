@@ -7,14 +7,8 @@ interface Props extends Omit<LinkProps, 'to'> {
   to?: string;
 }
 
-export const SearchLink: React.FC<Props> = ({
-  children,
-  params = {},
-  to,
-  ...props
-}) => {
+export const SearchLink: React.FC<Props> = ({ children, params = {}, to, ...props }) => {
   const { search, pathname } = useLocation();
-
   const newSearch = getSearchWith(new URLSearchParams(search), params);
 
   return (
@@ -22,7 +16,7 @@ export const SearchLink: React.FC<Props> = ({
       {...props}
       to={{
         pathname: to || pathname,
-        search: newSearch,
+        search: newSearch ? `?${newSearch}` : '',
       }}
     >
       {children}
