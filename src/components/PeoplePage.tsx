@@ -10,6 +10,7 @@ export const PeoplePage: React.FC = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [wasLoaded, setWasLoaded] = useState(false);
 
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
@@ -27,12 +28,19 @@ export const PeoplePage: React.FC = () => {
     getPeople()
       .then(setPeople)
       .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setWasLoaded(true);
+      });
   }, []);
 
+  const centuriesString = centuries.join(',');
+
   const visiblePeople = useMemo(() => {
+    const normalizedQuery = query.toLowerCase();
+    const activeCenturies = centuriesString ? centuriesString.split(',') : [];
+
     return people.filter(p => {
-      const normalizedQuery = query.toLowerCase();
       const matchesQuery = !query ||
         p.name.toLowerCase().includes(normalizedQuery) ||
         (p.motherName && p.motherName.toLowerCase().includes(normalizedQuery)) ||
@@ -41,11 +49,11 @@ export const PeoplePage: React.FC = () => {
       const matchesSex = !sex || p.sex === sex;
 
       const personCentury = Math.ceil(p.born / 100).toString();
-      const matchesCentury = centuries.length === 0 || centuries.includes(personCentury);
+      const matchesCentury = activeCenturies.length === 0 || activeCenturies.includes(personCentury);
 
       return matchesQuery && matchesSex && matchesCentury;
     });
-  }, [people, query, sex, centuries]);
+  }, [people, query, sex, centuriesString]);
 
   const sortedPeople = useMemo(() => {
     const result = [...visiblePeople];
@@ -55,20 +63,22 @@ export const PeoplePage: React.FC = () => {
         const valA = a[sort as keyof Person] ?? '';
         const valB = b[sort as keyof Person] ?? '';
 
-        if (valA < valB) {
-          return order === 'desc' ? 1 : -1;
+        let comparison = 0;
+
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          comparison = valA - valB;
+        } else {
+          comparison = String(valA).localeCompare(String(valB));
         }
-        if (valA > valB) {
-          return order === 'desc' ? -1 : 1;
-        }
-        return 0;
+
+        return order === 'desc' ? -comparison : comparison;
       });
     }
 
     return result;
   }, [visiblePeople, sort, order]);
 
-  if (loading) {
+  if (loading && !wasLoaded) {
     return <Loader />;
   }
 
@@ -84,15 +94,15 @@ export const PeoplePage: React.FC = () => {
     <div className="container">
       <h1 className="title">People Page</h1>
 
-      {people.length > 0 && <PeopleFilters />}
+      {wasLoaded && <PeopleFilters />}
 
-      {people.length > 0 && visiblePeople.length === 0 && (
+      {wasLoaded && people.length > 0 && visiblePeople.length === 0 && (
         <div className="notification is-warning" data-cy="noPeopleMessage">
           There are no people matching the search criteria.
         </div>
       )}
 
-      {people.length === 0 && !loading && (
+      {wasLoaded && people.length === 0 && (
         <div className="notification is-warning" data-cy="noPeopleMessage">
           No people found in the database.
         </div>
